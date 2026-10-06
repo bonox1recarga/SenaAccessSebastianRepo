@@ -20,9 +20,22 @@ class UserController extends Controller
         return response()->json($users); //CONSULTA DE TODOS LOS USUARIOS CON ROLES Y EQUIPOS
     }
 
-    public function getIngresos()
+    public function getIngresos(Request $request)
     {
-        $ingresos = Ingreso::with('user')->orderBy('ingreso_datetime', 'desc')->get();
+        $query = Ingreso::with('user')->orderBy('ingreso_datetime', 'desc');
+        // Filtros opcionales por fecha (el móvil los envía); sin ellos va todo.
+        if ($request->filled('desde')) {
+            $query->whereDate('ingreso_datetime', '>=', $request->desde);
+        }
+        if ($request->filled('hasta')) {
+            $query->whereDate('ingreso_datetime', '<=', $request->hasta);
+        }
+        $ingresos = $query->get();
+        // El móvil siempre envía per_page y espera {data:[...]}; el web pide
+        // sin parámetros y espera el array directo. Se sirven ambas formas.
+        if ($request->has('per_page')) {
+            return response()->json(['data' => $ingresos]);
+        }
         return response()->json($ingresos); //CONSULTA DE TODOS LOS USUARIOS ORDENADO POR FECHA DESCENDENTE
     }
 
