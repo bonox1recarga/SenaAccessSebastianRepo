@@ -1,22 +1,19 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
+// Ensancha token_code a 255 para guardar hashes bcrypt. SQL crudo porque
+// doctrine/dbal no está instalado. MODIFY es idempotente por naturaleza.
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('token_recovery', function (Blueprint $table) {
-            $table->string('token_code', 255)->change();
-        });
+        DB::statement('ALTER TABLE token_recovery MODIFY token_code VARCHAR(255)');
     }
 
     public function down(): void
     {
-        Schema::table('token_recovery', function (Blueprint $table) {
-            $table->string('token_code', 10)->change();
-        });
+        DB::statement('ALTER TABLE token_recovery MODIFY token_code VARCHAR(10)');
     }
 };
