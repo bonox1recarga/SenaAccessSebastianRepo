@@ -4,12 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\Role;
+use App\Models\Ingreso;
+use App\Models\IngresoEquipo;
+use App\Models\Novedad;
+use App\Models\Notificacion;
+use App\Models\TokenRecovery;
+use App\Models\TwoFactorChallenge;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Mail;
-
-use App\Models\Ingreso;
+use Illuminate\Support\Facades\DB;
 use CloudinaryLabs\CloudinaryLaravel\Facades\Cloudinary;
 
 class UserController extends Controller
@@ -77,10 +82,23 @@ class UserController extends Controller
         return response()->json($user->load(['role', 'ingreso_equipos']), 201);
     }
 
-    public function deleteUser($id) //FUNCION PARA ELIMINAR USUARIO POR ID
+    public function deleteUser(Request $request, $id) //FUNCION PARA ELIMINAR USUARIO POR ID (borrado total: primero su rastro, luego el usuario)
     {
+        if ((int) $request->user()->id_usuario === (int) $id) { //NADIE PUEDE BORRARSE A SI MISMO
+            return response()->json(['message' => 'No puedes eliminar tu propia cuenta.'], 403);
+        }
         $user = User::findOrFail($id);
-        $user->delete(); //ELIMINA EL USUARIO
+        DB::transaction(function () use ($user) { //TODO JUNTO O NADA: si algo falla no queda medio borrado
+            $uid = $user->id_usuario;
+            $user->tokens()->delete(); //SESIONES SANCTUM
+            TwoFactorChallenge::where('fk_id_usuario', $uid)->delete(); //RETOS 2FA
+            TokenRecovery::where('fk_id_usuario', $uid)->delete(); //TOKENS DE RECUPERACION
+            Ingreso::where('fk_id_user', $uid)->delete(); //HISTORIAL DE ACCESOS
+            IngresoEquipo::where('fk_id_usuario', $uid)->delete(); //EQUIPOS
+            Novedad::where('fk_id_usuario', $uid)->delete(); //NOVEDADES
+            Notificacion::where('fk_id_usuario', $uid)->delete(); //NOTIFICACIONES
+            $user->delete(); //ELIMINA EL USUARIO
+        });
         return response()->json(['message' => 'Usuario eliminado']); //RETORNA MENSAJE DE ELIMINACION
     }
 
